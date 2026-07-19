@@ -2401,64 +2401,94 @@ control,5,2.5,29,Sat-RSH,0.6075569245569246
 control,5,2.5,29,Size-matched null,0.25566376679583386
 control,5,3.0,0,Sat-RSH,0.5598025493025492
 control,5,3.0,0,Size-matched null,0.25647181548835307
+control,5,3.0,0,Degree-and-size-preserving rewired,0.23608255180478185
 control,5,3.0,1,Sat-RSH,0.5928117253117253
 control,5,3.0,1,Size-matched null,0.24475001632371748
+control,5,3.0,1,Degree-and-size-preserving rewired,0.23075163615667005
 control,5,3.0,2,Sat-RSH,0.6015269545269545
 control,5,3.0,2,Size-matched null,0.261549916220177
+control,5,3.0,2,Degree-and-size-preserving rewired,0.23179373110338447
 control,5,3.0,3,Sat-RSH,0.5992689347689347
 control,5,3.0,3,Size-matched null,0.22573383918721385
+control,5,3.0,3,Degree-and-size-preserving rewired,0.23283738726084574
 control,5,3.0,4,Sat-RSH,0.5907712472712473
 control,5,3.0,4,Size-matched null,0.25182457534436287
+control,5,3.0,4,Degree-and-size-preserving rewired,0.2407392420947624
 control,5,3.0,5,Sat-RSH,0.5856784511784512
 control,5,3.0,5,Size-matched null,0.22922131899914608
+control,5,3.0,5,Degree-and-size-preserving rewired,0.22566159234646344
 control,5,3.0,6,Sat-RSH,0.6017254967254967
 control,5,3.0,6,Size-matched null,0.23275177981032907
+control,5,3.0,6,Degree-and-size-preserving rewired,0.22206078868527632
 control,5,3.0,7,Sat-RSH,0.5636919931919931
 control,5,3.0,7,Size-matched null,0.2313307865924765
+control,5,3.0,7,Degree-and-size-preserving rewired,0.21397109358786884
 control,5,3.0,8,Sat-RSH,0.5871997446997447
 control,5,3.0,8,Size-matched null,0.23819957963081084
+control,5,3.0,8,Degree-and-size-preserving rewired,0.22777066039258245
 control,5,3.0,9,Sat-RSH,0.5776275391275391
 control,5,3.0,9,Size-matched null,0.23693868927366893
+control,5,3.0,9,Degree-and-size-preserving rewired,0.22416709964132886
 control,5,3.0,10,Sat-RSH,0.5628929958929959
 control,5,3.0,10,Size-matched null,0.2337697785691524
+control,5,3.0,10,Degree-and-size-preserving rewired,0.22057164512237107
 control,5,3.0,11,Sat-RSH,0.6306964886964886
 control,5,3.0,11,Size-matched null,0.25167400372552673
+control,5,3.0,11,Degree-and-size-preserving rewired,0.24426223674757314
 control,5,3.0,12,Sat-RSH,0.5950806785806786
 control,5,3.0,12,Size-matched null,0.25138609296012604
+control,5,3.0,12,Degree-and-size-preserving rewired,0.24649248723357445
 control,5,3.0,13,Sat-RSH,0.5993095793095793
 control,5,3.0,13,Size-matched null,0.23264835202527653
+control,5,3.0,13,Degree-and-size-preserving rewired,0.22078847110141675
 control,5,3.0,14,Sat-RSH,0.602910792910793
 control,5,3.0,14,Size-matched null,0.22834647773509908
+control,5,3.0,14,Degree-and-size-preserving rewired,0.23252565419658647
 control,5,3.0,15,Sat-RSH,0.5747385762385762
 control,5,3.0,15,Size-matched null,0.22832154739754695
+control,5,3.0,15,Degree-and-size-preserving rewired,0.21793469302768367
 control,5,3.0,16,Sat-RSH,0.5841334406334406
 control,5,3.0,16,Size-matched null,0.24490185904685002
+control,5,3.0,16,Degree-and-size-preserving rewired,0.22551950425101427
 control,5,3.0,17,Sat-RSH,0.5715055315055315
 control,5,3.0,17,Size-matched null,0.2514554025501618
+control,5,3.0,17,Degree-and-size-preserving rewired,0.2302676503562879
 control,5,3.0,18,Sat-RSH,0.5960449920449921
 control,5,3.0,18,Size-matched null,0.2566785761214969
+control,5,3.0,18,Degree-and-size-preserving rewired,0.2429566043159756
 control,5,3.0,19,Sat-RSH,0.5962313427313427
 control,5,3.0,19,Size-matched null,0.22129229079253207
+control,5,3.0,19,Degree-and-size-preserving rewired,0.22962107556651679
 control,5,3.0,20,Sat-RSH,0.5741195101195101
 control,5,3.0,20,Size-matched null,0.23752631576689964
+control,5,3.0,20,Degree-and-size-preserving rewired,0.23632479877579585
 control,5,3.0,21,Sat-RSH,0.5683517593517593
 control,5,3.0,21,Size-matched null,0.23006204831427268
+control,5,3.0,21,Degree-and-size-preserving rewired,0.2157082331592766
 control,5,3.0,22,Sat-RSH,0.585536778036778
 control,5,3.0,22,Size-matched null,0.24040553786846247
+control,5,3.0,22,Degree-and-size-preserving rewired,0.2265990540103154
 control,5,3.0,23,Sat-RSH,0.5925181115181115
 control,5,3.0,23,Size-matched null,0.2418707324168928
+control,5,3.0,23,Degree-and-size-preserving rewired,0.24333905070779843
 control,5,3.0,24,Sat-RSH,0.5604178044178044
 control,5,3.0,24,Size-matched null,0.23330946860639523
+control,5,3.0,24,Degree-and-size-preserving rewired,0.21968108822412669
 control,5,3.0,25,Sat-RSH,0.585547619047619
 control,5,3.0,25,Size-matched null,0.23058057695480083
+control,5,3.0,25,Degree-and-size-preserving rewired,0.23081127276952718
 control,5,3.0,26,Sat-RSH,0.6171661301661302
 control,5,3.0,26,Size-matched null,0.23711258288548934
+control,5,3.0,26,Degree-and-size-preserving rewired,0.23131459820378486
 control,5,3.0,27,Sat-RSH,0.6081245976245976
 control,5,3.0,27,Size-matched null,0.2322883066188915
+control,5,3.0,27,Degree-and-size-preserving rewired,0.22532732933345406
 control,5,3.0,28,Sat-RSH,0.5876029341029341
 control,5,3.0,28,Size-matched null,0.23570787273930396
+control,5,3.0,28,Degree-and-size-preserving rewired,0.21694113280581898
 control,5,3.0,29,Sat-RSH,0.5933500018500019
 control,5,3.0,29,Size-matched null,0.2136600312621213
+control,5,3.0,29,Degree-and-size-preserving rewired,0.2113547959853352
 control,5,3.5,0,Sat-RSH,0.5843857253857253
 control,5,3.5,0,Size-matched null,0.2208306554007641
 control,5,3.5,1,Sat-RSH,0.5824625559625559

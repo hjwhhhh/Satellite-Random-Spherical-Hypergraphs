@@ -1,4 +1,4 @@
-panel,group,rho,trial,apl_lcc,lcc_fraction,connected,mean_hyperedge_degree
+panel,group,rho,trial,apl_lcc,lcc_fraction,connected,mean_hypergraph_vertex_degree
 gamma,1.5,1.5,0,8.334582852748943,0.9633333333333334,0,3.5233333333333334
 gamma,1.5,2.0,0,7.203263055612049,0.9933333333333333,0,4.43
 gamma,1.5,2.5,0,6.595744203272654,0.9966666666666667,0,5.316666666666666

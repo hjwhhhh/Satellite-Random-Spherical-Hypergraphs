@@ -13,7 +13,8 @@ generate the results reported in the manuscript.
 ## Repository contents
 
 - `sat_rsh_model.py`: model generator, exact retained-attempt mixture, graph
-  projections and metrics, Wilson intervals, and the size-matched control.
+  projections and metrics, Wilson intervals, the size-matched control, and the
+  degree-and-size-preserving incidence-rewiring control.
 - `reproduce_all.py`: regenerates Figures 1--8, trial-level CSV files, and run
   metadata.
 - `validate_outputs.py`: verifies the complete publication output package.
@@ -99,12 +100,16 @@ The validator checks the complete file set, CSV row counts, full manifest,
 |---|---:|---|
 | `figure1_hyperedges.csv` | 178 | Unique hyperedges in both example realizations |
 | `figure2_geometry.csv` | 1 | Footprint angles and normalized altitude |
-| `figure3_size_distribution_trials.csv` | 800 | Trial-level retained-size counts and proportions |
+| `figure3_size_distribution_trials.csv` | 800 | Pre-deduplication retained-attempt and final unique-edge size counts and proportions |
 | `figure4_degree_trials.csv` | 1200 | Degree and unique-edge-yield statistics |
 | `figure5_connectivity_trials.csv` | 6400 | Coupled finite-size connectivity indicators |
 | `figure6_node_degrees.csv` | 50000 | Vertex degrees for the Poisson comparison |
-| `figure7_clustering_trials.csv` | 2700 | Sat-RSH and control clustering values |
-| `figure8_path_trials.csv` | 1400 | LCC paths, coverage, connectivity, and mean degree |
+| `figure6_degree_diagnostics.csv` | 2 | Pooled dispersion/TV estimates and realization-block bootstrap intervals |
+| `figure7_clustering_trials.csv` | 2730 | Sat-RSH and non-geometric-control clustering values |
+| `figure7_control_summary.csv` | 10 | Paired control contrasts and Student-t confidence intervals |
+| `figure7_rewiring_diagnostics.csv` | 120 | Rewiring checkpoints, seeds, acceptance statistics, and invariant digests |
+| `figure8_path_trials.csv` | 1400 | LCC paths, coverage, connectivity, and mean hypergraph vertex degree |
+| `figure8_density_change_summary.csv` | 4 | Paired density-change estimates and confidence intervals |
 
 All data are synthetic and are regenerated from the fixed base seed. No human,
 animal, confidential, or third-party data are included.
@@ -117,7 +122,8 @@ animal, confidential, or third-party data are included.
 4. Hypergraph vertex-degree summary statistics.
 5. Empirical finite-size connectivity transitions.
 6. Hypergraph vertex-degree distributions.
-7. Clustering relative to a size-matched non-geometric control.
+7. Clustering relative to size-matched and degree-and-size-preserving
+   non-geometric controls.
 8. Largest-component path lengths, component fractions, and mean hypergraph
    vertex degrees.
 
@@ -127,19 +133,28 @@ animal, confidential, or third-party data are included.
 - Independent streams are derived with `numpy.random.SeedSequence`.
 - Figures 5 and 8 evaluate nested prefixes of one maximum attempt sequence
   within each trial, making sample-level connectivity nondecreasing in density.
-- Repeated parameter combinations in Figures 5, 7, and 8 reuse the same
-  trial-level realization across the relevant panels.
+- Repeated parameter combinations in Figure 5, Figure 7 panels (a,b), and
+  Figure 8 reuse the same trial-level realization across the relevant panels;
+  Figure 7(c) uses an independent paired-control stream.
 - Error bars are sample standard deviations unless a caption states otherwise.
-- Connectivity bands are 95% Wilson score intervals.
+- Connectivity bands are pointwise 95% Wilson score intervals.
+- Figure 6 uncertainty for pooled dispersion and total variation uses 10,000
+  realization-block bootstrap resamples.
 - Clustering assigns zero to isolated and degree-one vertices.
 - Path length is computed in the largest connected component and exported with
   its vertex fraction.
 - The Figure 7 control matches the vertex set, number of unique hyperedges, and
   complete hyperedge-size sequence, but not the vertex-degree sequence.
+- At the central Figure 7 setting, a second control performs incidence switches
+  that exactly preserve every vertex degree, every hyperedge size, edge count,
+  and simplicity. Results are checked after 20q, 50q, 100q, and 200q accepted
+  switches and use the 200q state, where q is the number of unique hyperedges.
+  This is a constrained rewiring benchmark, not a claim of uniform sampling.
 
 Every run records the Python version, operating system, package versions,
-worker count, requested figures, seed rule, repository URL, and license. A
-partial run records its scope separately and cannot replace the full-paper
+worker count, requested figures, full parameter grids, seed rule, control
+definitions, repository URL, license, and SHA-256 hashes of generated outputs.
+A partial run records its scope separately and cannot replace the full-paper
 manifest.
 
 ## Figure format and fonts

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import importlib.metadata
 import json
 import platform
@@ -40,8 +41,10 @@ from sat_rsh_model import (
     SIZE_COLORS,
     SIZE_MARKERS,
     cap_angle,
+    generate_degree_size_preserving_control,
     generate_realization,
     generate_size_matched_null,
+    hypergraph_vertex_degrees,
     poisson_total_variation,
     publication_style,
     realization_metrics,
@@ -114,6 +117,12 @@ def write_csv(name: str, fieldnames: list[str], rows: list[dict]) -> None:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def integer_sequence_digest(values) -> str:
+    """Stable SHA-256 digest for an integer sequence."""
+    array = np.asarray(values, dtype="<i8")
+    return hashlib.sha256(array.tobytes()).hexdigest()
 
 
 def parallel_map(label: str, worker, jobs: list[tuple], workers: int) -> list:
@@ -360,22 +369,67 @@ def make_figure3(workers: int) -> None:
     results = parallel_map("Figure 3", trial_worker, jobs, workers)
 
     rows: list[dict] = []
-    proportions: dict[float, list[np.ndarray]] = {gamma: [] for gamma in GAMMAS}
+    unique_proportions: dict[float, list[np.ndarray]] = {gamma: [] for gamma in GAMMAS}
+    retained_proportions: dict[float, list[np.ndarray]] = {gamma: [] for gamma in GAMMAS}
     for (gamma, trial), (realization, metrics) in zip(labels, results):
-        counts = np.asarray([np.sum(realization.unique_sizes == size) for size in range(2, 6)], dtype=float)
-        props = counts / counts.sum()
-        proportions[gamma].append(props)
-        for size, count, prop in zip(range(2, 6), counts.astype(int), props):
-            rows.append({"gamma": gamma, "trial": trial, "size": size, "unique_count": count, "unique_proportion": prop, "retained_attempts": metrics["retained_attempts"], "unique_edges": metrics["unique_edges"]})
-    write_csv("figure3_size_distribution_trials.csv", ["gamma", "trial", "size", "unique_count", "unique_proportion", "retained_attempts", "unique_edges"], rows)
+        unique_counts = np.asarray(
+            [np.sum(realization.unique_sizes == size) for size in range(2, 6)],
+            dtype=float,
+        )
+        retained_counts = np.asarray(
+            [np.sum(realization.retained_sizes == size) for size in range(2, 6)],
+            dtype=float,
+        )
+        unique_props = unique_counts / unique_counts.sum()
+        retained_props = retained_counts / retained_counts.sum()
+        unique_proportions[gamma].append(unique_props)
+        retained_proportions[gamma].append(retained_props)
+        for size, unique_count, unique_prop, retained_count, retained_prop in zip(
+            range(2, 6),
+            unique_counts.astype(int),
+            unique_props,
+            retained_counts.astype(int),
+            retained_props,
+        ):
+            rows.append(
+                {
+                    "gamma": gamma,
+                    "trial": trial,
+                    "size": size,
+                    "unique_count": unique_count,
+                    "unique_proportion": unique_prop,
+                    "retained_count": retained_count,
+                    "retained_proportion": retained_prop,
+                    "retained_attempts": metrics["retained_attempts"],
+                    "unique_edges": metrics["unique_edges"],
+                }
+            )
+    write_csv(
+        "figure3_size_distribution_trials.csv",
+        [
+            "gamma",
+            "trial",
+            "size",
+            "unique_count",
+            "unique_proportion",
+            "retained_count",
+            "retained_proportion",
+            "retained_attempts",
+            "unique_edges",
+        ],
+        rows,
+    )
 
     fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.95))
     sizes = np.arange(2, 6)
     width = 0.18
     calibration_x, calibration_y = [], []
     for gamma_index, gamma in enumerate(GAMMAS):
-        values = np.vstack(proportions[gamma])
+        values = np.vstack(unique_proportions[gamma])
+        retained_values = np.vstack(retained_proportions[gamma])
         means, standard_deviations = values.mean(axis=0), values.std(axis=0, ddof=1)
+        retained_means = retained_values.mean(axis=0)
+        retained_standard_errors = retained_values.std(axis=0, ddof=1) / np.sqrt(trials)
         offset = (gamma_index - 1.5) * width
         axes[0].bar(sizes + offset, means, width=width, color=GAMMA_COLORS[gamma], alpha=0.78)
         axes[0].errorbar(sizes + offset, means, yerr=standard_deviations, fmt="none", ecolor=GAMMA_COLORS[gamma], elinewidth=0.75, capsize=1.5, capthick=0.75)
@@ -387,6 +441,20 @@ def make_figure3(workers: int) -> None:
         calibration_x.extend(retained)
         calibration_y.extend(means)
         for size_index, (x_value, y_value, y_error) in enumerate(zip(retained, means, standard_deviations)):
+            axes[1].errorbar(
+                x_value,
+                retained_means[size_index],
+                yerr=t.ppf(0.975, trials - 1) * retained_standard_errors[size_index],
+                fmt=SIZE_MARKERS[int(sizes[size_index])],
+                color=GAMMA_COLORS[gamma],
+                markerfacecolor="white",
+                markeredgewidth=0.75,
+                ls="none",
+                capsize=1.5,
+                elinewidth=0.6,
+                capthick=0.6,
+                zorder=3,
+            )
             axes[1].errorbar(
                 x_value,
                 y_value,
@@ -410,9 +478,9 @@ def make_figure3(workers: int) -> None:
     axes[0].set_xlabel("Retained hyperedge size $|e|$")
     axes[0].set_ylabel("Proportion")
     axes[1].set_xlabel("Exact retained-attempt probability")
-    axes[1].set_ylabel("Observed unique-edge probability")
+    axes[1].set_ylabel("Observed probability")
     panel_title(axes[0], "a", "Target and realized size laws")
-    panel_title(axes[1], "b", "Final edges versus retained-attempt law")
+    panel_title(axes[1], "b", "Mixture check and deduplication")
     semantic_handles = [
         Patch(facecolor="#9CA3AF", edgecolor="none", alpha=0.78, label=r"final unique (mean $\pm$ SD)"),
         Line2D([0], [0], marker="x", color="black", ls="none", label="target Zipf"),
@@ -436,7 +504,7 @@ def make_figure3(workers: int) -> None:
         for size in sizes
     ]
     size_labels = [rf"$|e|={size}$" for size in sizes]
-    axes[1].legend(
+    size_legend = axes[1].legend(
         handles=size_handles,
         labels=size_labels,
         handler_map={tuple: HandlerTuple(ndivide=None, pad=0.15)},
@@ -445,6 +513,18 @@ def make_figure3(workers: int) -> None:
         ncol=1,
         fontsize=5.5,
         handletextpad=0.4,
+        labelspacing=0.25,
+    )
+    axes[1].add_artist(size_legend)
+    axes[1].legend(
+        handles=[
+            Line2D([0], [0], marker="o", markerfacecolor="white", markeredgecolor="black", color="none", label="retained attempts (95% CI)"),
+            Line2D([0], [0], marker="o", markerfacecolor=OKABE_ITO["gray"], markeredgecolor="white", color="none", label=r"final unique (mean $\pm$ SD)"),
+        ],
+        frameon=False,
+        loc="upper left",
+        fontsize=5.3,
+        handletextpad=0.35,
         labelspacing=0.25,
     )
     gamma_handles = [Line2D([0], [0], color=GAMMA_COLORS[gamma], lw=2.2, label=rf"$\gamma={gamma}$") for gamma in GAMMAS]
@@ -469,7 +549,7 @@ def make_figure4(workers: int) -> None:
     rows = []
     for (gamma, rho, trial), (_, metrics) in zip(labels, results):
         reference = rho * retained_attempt_probabilities(n, gamma, s_max)["retained_incidence_mean"]
-        rows.append({"gamma": gamma, "rho": rho, "trial": trial, "mean_hyperedge_degree": metrics["mean_hyperedge_degree"], "attempt_level_reference": reference, "unique_fraction_attempts": metrics["unique_fraction_attempts"], "unique_fraction_retained": metrics["unique_fraction_retained"]})
+        rows.append({"gamma": gamma, "rho": rho, "trial": trial, "mean_hypergraph_vertex_degree": metrics["mean_hypergraph_vertex_degree"], "attempt_level_reference": reference, "unique_fraction_attempts": metrics["unique_fraction_attempts"], "unique_fraction_retained": metrics["unique_fraction_retained"]})
     write_csv("figure4_degree_trials.csv", list(rows[0]), rows)
 
     fig, axes = plt.subplots(1, 3, figsize=(7.2, 2.75))
@@ -477,7 +557,7 @@ def make_figure4(workers: int) -> None:
         means, sds, references, fractions, fraction_sds = [], [], [], [], []
         for rho in rhos:
             subset = [row for row in rows if row["gamma"] == gamma and row["rho"] == rho]
-            observed = np.asarray([row["mean_hyperedge_degree"] for row in subset])
+            observed = np.asarray([row["mean_hypergraph_vertex_degree"] for row in subset])
             fraction = np.asarray([row["unique_fraction_attempts"] for row in subset])
             means.append(observed.mean()); sds.append(observed.std(ddof=1))
             references.append(subset[0]["attempt_level_reference"])
@@ -489,7 +569,7 @@ def make_figure4(workers: int) -> None:
         axes[2].errorbar(rhos, fractions, yerr=fraction_sds, color=color, marker=marker, markeredgecolor="white", markeredgewidth=0.3, capsize=1.4, capthick=0.7, elinewidth=0.7)
     maximum = 1.04 * max(
         max(float(row["attempt_level_reference"]) for row in rows),
-        max(float(row["mean_hyperedge_degree"]) for row in rows),
+        max(float(row["mean_hypergraph_vertex_degree"]) for row in rows),
     )
     axes[1].plot([0, maximum], [0, maximum], color=OKABE_ITO["gray"], ls="--", lw=0.9, zorder=0)
     axes[0].set(xlabel=r"$\rho=m/n$", ylabel="Mean hypergraph vertex degree")
@@ -571,15 +651,6 @@ def make_figure5(workers: int) -> None:
         clean_axes(axes[panel_index])
     panel_title(axes[0], "a", r"Tail exponent ($s_{\max}=5$)")
     panel_title(axes[1], "b", r"Size cutoff ($\gamma=2$)")
-    axes[1].annotate(
-        r"$s_{\max}=2$: 0/80 connected",
-        xy=(4.8, 0.0),
-        xytext=(3.15, 0.15),
-        ha="center",
-        va="center",
-        fontsize=5.8,
-        arrowprops=dict(arrowstyle="-", color=OKABE_ITO["gray"], lw=0.7),
-    )
     fig.subplots_adjust(left=0.085, right=0.985, bottom=0.19, top=0.90, wspace=0.28)
     save_figure(fig, 5)
     print("Figure 5 complete", flush=True)
@@ -607,11 +678,51 @@ def make_figure6(workers: int) -> None:
     maximum = max(int(degrees.max()) for values in grouped.values() for degrees in values)
     support = np.arange(0, maximum + 1)
     fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.75), sharex=True, sharey=True)
+    diagnostic_rows = []
     for ax, gamma in zip(axes, considered):
         degrees = np.concatenate(grouped[gamma])
         mean, dispersion, total_variation = poisson_total_variation(degrees)
         trial_pmfs = np.vstack(
             [np.bincount(values, minlength=maximum + 1)[: maximum + 1] / len(values) for values in grouped[gamma]]
+        )
+        trial_counts = trial_pmfs * n
+        bootstrap_rng = np.random.default_rng(stable_seed(6, 9, int(gamma * 10)))
+        bootstrap_resamples = 10000
+        bootstrap_weights = bootstrap_rng.multinomial(
+            len(grouped[gamma]),
+            np.full(len(grouped[gamma]), 1.0 / len(grouped[gamma])),
+            size=bootstrap_resamples,
+        )
+        bootstrap_counts = bootstrap_weights @ trial_counts
+        bootstrap_probabilities = bootstrap_counts / bootstrap_counts.sum(axis=1, keepdims=True)
+        bootstrap_means = bootstrap_probabilities @ support
+        bootstrap_second_moments = bootstrap_probabilities @ (support**2)
+        bootstrap_variances = bootstrap_second_moments - bootstrap_means**2
+        bootstrap_dispersions = bootstrap_variances / bootstrap_means
+        fitted = poisson.pmf(support[None, :], bootstrap_means[:, None])
+        fitted_tail = np.maximum(0.0, 1.0 - fitted.sum(axis=1))
+        bootstrap_tv = 0.5 * (
+            np.abs(bootstrap_probabilities - fitted).sum(axis=1) + fitted_tail
+        )
+        dispersion_low, dispersion_high = np.quantile(
+            bootstrap_dispersions, (0.025, 0.975)
+        )
+        tv_low, tv_high = np.quantile(bootstrap_tv, (0.025, 0.975))
+        diagnostic_rows.append(
+            {
+                "gamma": gamma,
+                "realizations": len(grouped[gamma]),
+                "vertices_per_realization": n,
+                "mean_degree": mean,
+                "variance_to_mean": dispersion,
+                "dispersion_ci_low": dispersion_low,
+                "dispersion_ci_high": dispersion_high,
+                "total_variation": total_variation,
+                "tv_ci_low": tv_low,
+                "tv_ci_high": tv_high,
+                "bootstrap_resamples": bootstrap_resamples,
+                "resampling_unit": "realization",
+            }
         )
         observed = trial_pmfs.mean(axis=0)
         critical = t.ppf(0.975, len(trial_pmfs) - 1)
@@ -630,17 +741,74 @@ def make_figure6(workers: int) -> None:
     axes[0].legend(frameon=False, loc="upper left", fontsize=5.8, handlelength=1.6)
     fig.subplots_adjust(left=0.075, right=0.99, bottom=0.19, top=0.90, wspace=0.18)
     save_figure(fig, 6)
+    write_csv(
+        "figure6_degree_diagnostics.csv",
+        list(diagnostic_rows[0]),
+        diagnostic_rows,
+    )
     print("Figure 6 complete", flush=True)
 
 
-def null_worker(n, m, gamma, s_max, seed, null_seed):
+def null_worker(n, m, gamma, s_max, seed, null_seed, rewire_stage_seeds):
     realization = generate_realization(n, m, gamma, s_max, seed)
     sat_graph = shadow_graph(n, realization.unique_edges)
     sat_clustering = nx.average_clustering(sat_graph, count_zeros=True)
     null_edges = generate_size_matched_null(n, realization.unique_sizes, null_seed)
     null_graph = shadow_graph(n, null_edges)
     null_clustering = nx.average_clustering(null_graph, count_zeros=True)
-    return sat_clustering, null_clustering
+    output = {
+        "sat_clustering": sat_clustering,
+        "size_null_clustering": null_clustering,
+        "q": len(realization.unique_edges),
+        "size_sequence_sha256": integer_sequence_digest(
+            sorted(realization.unique_sizes)
+        ),
+        "sat_degree_sequence_sha256": integer_sequence_digest(
+            hypergraph_vertex_degrees(n, realization.unique_edges)
+        ),
+        "size_null_degree_sequence_sha256": integer_sequence_digest(
+            hypergraph_vertex_degrees(n, null_edges)
+        ),
+        "rewiring": [],
+    }
+    if rewire_stage_seeds is not None:
+        rewired_edges = realization.unique_edges
+        cumulative_successful = 0
+        cumulative_attempted = 0
+        previous_checkpoint = 0
+        for checkpoint, rewire_seed in zip((20, 50, 100, 200), rewire_stage_seeds):
+            stage_successful = (checkpoint - previous_checkpoint) * len(rewired_edges)
+            rewired_edges, diagnostics = generate_degree_size_preserving_control(
+                n,
+                rewired_edges,
+                rewire_seed,
+                stage_successful,
+            )
+            cumulative_successful += int(diagnostics["successful_swaps"])
+            cumulative_attempted += int(diagnostics["attempted_swaps"])
+            rewired_graph = shadow_graph(n, rewired_edges)
+            output["rewiring"].append(
+                {
+                    "checkpoint_swaps_per_edge": checkpoint,
+                    "rewire_seed": rewire_seed,
+                    "stage_successful_swaps": int(diagnostics["successful_swaps"]),
+                    "stage_attempted_swaps": int(diagnostics["attempted_swaps"]),
+                    "cumulative_successful_swaps": cumulative_successful,
+                    "cumulative_attempted_swaps": cumulative_attempted,
+                    "stage_acceptance_rate": diagnostics["acceptance_rate"],
+                    "clustering": nx.average_clustering(
+                        rewired_graph, count_zeros=True
+                    ),
+                    "degree_sequence_sha256": integer_sequence_digest(
+                        hypergraph_vertex_degrees(n, rewired_edges)
+                    ),
+                    "size_sequence_sha256": integer_sequence_digest(
+                        sorted(map(len, rewired_edges))
+                    ),
+                }
+            )
+            previous_checkpoint = checkpoint
+    return output
 
 
 def make_figure7(workers: int) -> None:
@@ -668,13 +836,123 @@ def make_figure7(workers: int) -> None:
     null_jobs, null_labels = [], []
     for rho_index, rho in enumerate(rhos):
         for trial in range(trials):
-            null_jobs.append((n, int(round(n * rho)), 2.0, 5, stable_seed(7, 2, rho_index, trial), stable_seed(7, 3, rho_index, trial)))
-            null_labels.append((rho, trial))
-    null_results = parallel_map("Figure 7 size-matched null", null_worker, null_jobs, workers)
-    for (rho, trial), (sat_value, null_value) in zip(null_labels, null_results):
-        rows.append({"panel": "control", "group": 5, "rho": rho, "trial": trial, "model": "Sat-RSH", "clustering": sat_value})
-        rows.append({"panel": "control", "group": 5, "rho": rho, "trial": trial, "model": "Size-matched null", "clustering": null_value})
+            sat_seed = stable_seed(7, 2, rho_index, trial)
+            size_null_seed = stable_seed(7, 3, rho_index, trial)
+            rewire_seeds = (
+                tuple(stable_seed(7, 4, rho_index, trial, stage) for stage in range(4))
+                if np.isclose(rho, 3.0)
+                else None
+            )
+            null_jobs.append(
+                (
+                    n,
+                    int(round(n * rho)),
+                    2.0,
+                    5,
+                    sat_seed,
+                    size_null_seed,
+                    rewire_seeds,
+                )
+            )
+            null_labels.append((rho, trial, sat_seed, size_null_seed))
+    null_results = parallel_map(
+        "Figure 7 non-geometric controls", null_worker, null_jobs, workers
+    )
+    rewiring_rows = []
+    for (rho, trial, sat_seed, size_null_seed), result in zip(
+        null_labels, null_results
+    ):
+        rows.append({"panel": "control", "group": 5, "rho": rho, "trial": trial, "model": "Sat-RSH", "clustering": result["sat_clustering"]})
+        rows.append({"panel": "control", "group": 5, "rho": rho, "trial": trial, "model": "Size-matched null", "clustering": result["size_null_clustering"]})
+        for checkpoint in result["rewiring"]:
+            rewiring_rows.append(
+                {
+                    "rho": rho,
+                    "trial": trial,
+                    "q": result["q"],
+                    "sat_seed": sat_seed,
+                    "size_null_seed": size_null_seed,
+                    **checkpoint,
+                    "sat_degree_sequence_sha256": result[
+                        "sat_degree_sequence_sha256"
+                    ],
+                    "sat_size_sequence_sha256": result[
+                        "size_sequence_sha256"
+                    ],
+                }
+            )
+        if result["rewiring"]:
+            rows.append(
+                {
+                    "panel": "control",
+                    "group": 5,
+                    "rho": rho,
+                    "trial": trial,
+                    "model": "Degree-and-size-preserving rewired",
+                    "clustering": result["rewiring"][-1]["clustering"],
+                }
+            )
     write_csv("figure7_clustering_trials.csv", ["panel", "group", "rho", "trial", "model", "clustering"], rows)
+    write_csv(
+        "figure7_rewiring_diagnostics.csv",
+        list(rewiring_rows[0]),
+        rewiring_rows,
+    )
+
+    summary_rows = []
+    for model in (
+        "Size-matched null",
+        "Degree-and-size-preserving rewired",
+    ):
+        model_rhos = sorted(
+            {
+                float(row["rho"])
+                for row in rows
+                if row["panel"] == "control" and row["model"] == model
+            }
+        )
+        for rho in model_rhos:
+            sat_values = np.asarray(
+                [
+                    row["clustering"]
+                    for row in rows
+                    if row["panel"] == "control"
+                    and row["model"] == "Sat-RSH"
+                    and row["rho"] == rho
+                ]
+            )
+            control_values = np.asarray(
+                [
+                    row["clustering"]
+                    for row in rows
+                    if row["panel"] == "control"
+                    and row["model"] == model
+                    and row["rho"] == rho
+                ]
+            )
+            differences = sat_values - control_values
+            critical = t.ppf(0.975, len(differences) - 1)
+            half_width = critical * differences.std(ddof=1) / np.sqrt(
+                len(differences)
+            )
+            summary_rows.append(
+                {
+                    "rho": rho,
+                    "model": model,
+                    "paired_trials": len(differences),
+                    "sat_mean": sat_values.mean(),
+                    "control_mean": control_values.mean(),
+                    "mean_paired_difference": differences.mean(),
+                    "ci95_low": differences.mean() - half_width,
+                    "ci95_high": differences.mean() + half_width,
+                    "positive_pairs": int(np.sum(differences > 0)),
+                }
+            )
+    write_csv(
+        "figure7_control_summary.csv",
+        list(summary_rows[0]),
+        summary_rows,
+    )
 
     fig, axes = plt.subplots(1, 3, figsize=(7.2, 2.75))
     configurations = (("gamma", GAMMAS), ("smax", SMAX_VALUES))
@@ -707,11 +985,34 @@ def make_figure7(workers: int) -> None:
         null_curves[model] = np.asarray(means)
         axes[2].errorbar(rhos, means, yerr=sds, color=color, marker=marker, markeredgecolor="white", markeredgewidth=0.3, ls=linestyle, capsize=1.3, capthick=0.65, elinewidth=0.65, label=model)
     axes[2].fill_between(rhos, null_curves["Size-matched null"], null_curves["Sat-RSH"], color=OKABE_ITO["gray"], alpha=0.08, linewidth=0, zorder=0)
+    rewired_values = np.asarray(
+        [
+            row["clustering"]
+            for row in rows
+            if row["panel"] == "control"
+            and row["model"] == "Degree-and-size-preserving rewired"
+        ]
+    )
+    axes[2].errorbar(
+        [3.0],
+        [rewired_values.mean()],
+        yerr=[rewired_values.std(ddof=1)],
+        color=OKABE_ITO["bluish_green"],
+        marker="^",
+        markeredgecolor="white",
+        markeredgewidth=0.35,
+        ls="none",
+        capsize=1.8,
+        capthick=0.7,
+        elinewidth=0.7,
+        label="Degree+size-preserving",
+        zorder=4,
+    )
     axes[2].set_xlabel(r"$\rho=m/n$")
     axes[2].set_ylabel("Mean local clustering")
     axes[2].set_ylim(0.16, 0.66)
-    panel_title(axes[2], "c", r"Size-matched control ($\gamma=2$)")
-    axes[2].legend(frameon=False, fontsize=5.8, handlelength=1.7)
+    panel_title(axes[2], "c", r"Non-geometric controls ($\gamma=2$)")
+    axes[2].legend(frameon=False, fontsize=5.1, handlelength=1.6)
     clean_axes(axes[2])
     fig.subplots_adjust(left=0.075, right=0.992, bottom=0.19, top=0.90, wspace=0.38)
     save_figure(fig, 7)
@@ -747,15 +1048,66 @@ def make_figure8(workers: int) -> None:
                 "apl_lcc": metrics["apl_lcc"],
                 "lcc_fraction": metrics["lcc_fraction"],
                 "connected": int(metrics["connected"]),
-                "mean_hyperedge_degree": metrics["mean_hyperedge_degree"],
+                "mean_hypergraph_vertex_degree": metrics["mean_hypergraph_vertex_degree"],
             }
             rows.append(row)
             if panel == "gamma" and float(group) == 2.0:
                 rows.append({**row, "panel": "n", "group": 300})
     write_csv(
         "figure8_path_trials.csv",
-        ["panel", "group", "rho", "trial", "apl_lcc", "lcc_fraction", "connected", "mean_hyperedge_degree"],
+        ["panel", "group", "rho", "trial", "apl_lcc", "lcc_fraction", "connected", "mean_hypergraph_vertex_degree"],
         rows,
+    )
+
+    density_change_rows = []
+    for gamma in GAMMAS:
+        start_rows = sorted(
+            (
+                row
+                for row in rows
+                if row["panel"] == "gamma"
+                and row["group"] == gamma
+                and row["rho"] == rhos[0]
+            ),
+            key=lambda row: row["trial"],
+        )
+        end_rows = sorted(
+            (
+                row
+                for row in rows
+                if row["panel"] == "gamma"
+                and row["group"] == gamma
+                and row["rho"] == rhos[-1]
+            ),
+            key=lambda row: row["trial"],
+        )
+        summary = {
+            "gamma": gamma,
+            "rho_start": rhos[0],
+            "rho_end": rhos[-1],
+            "paired_trials": len(start_rows),
+        }
+        for metric in (
+            "apl_lcc",
+            "lcc_fraction",
+            "mean_hypergraph_vertex_degree",
+        ):
+            differences = np.asarray(
+                [end[metric] - start[metric] for start, end in zip(start_rows, end_rows)],
+                dtype=float,
+            )
+            critical = t.ppf(0.975, len(differences) - 1)
+            half_width = critical * differences.std(ddof=1) / np.sqrt(
+                len(differences)
+            )
+            summary[f"{metric}_mean_change"] = differences.mean()
+            summary[f"{metric}_ci95_low"] = differences.mean() - half_width
+            summary[f"{metric}_ci95_high"] = differences.mean() + half_width
+        density_change_rows.append(summary)
+    write_csv(
+        "figure8_density_change_summary.csv",
+        list(density_change_rows[0]),
+        density_change_rows,
     )
 
     fig, axes = plt.subplots(2, 2, figsize=(7.2, 4.85), sharex="col")
@@ -795,18 +1147,45 @@ def make_figure8(workers: int) -> None:
 
 
 def write_manifest(arguments, requested_figures: list[int]) -> Path:
+    output_hashes = {}
+    for number in requested_figures:
+        candidates = sorted(DATA_DIR.glob(f"figure{number}_*.csv")) + [
+            FIGURE_DIR / f"figure{number}.pdf",
+            FIGURE_DIR / f"figure{number}.png",
+        ]
+        for path in candidates:
+            if path.is_file():
+                output_hashes[str(path.relative_to(HERE)).replace("\\", "/")] = (
+                    hashlib.sha256(path.read_bytes()).hexdigest()
+                )
     manifest = {
+        "analysis_version": 2,
         "model": "fixed-cap Sat-RSH with discard, truncation, and duplicate removal",
         "base_seed": BASE_SEED,
         "repository": REPOSITORY_URL,
         "license": "MIT",
-        "seed_rule": "numpy.random.SeedSequence([base_seed, figure, sweep, parameter_index, trial]); unused coordinates are omitted",
+        "seed_rule": "stable_seed(*coordinates) uses numpy.random.SeedSequence([base_seed, *coordinates]); coordinate tuples are explicit at every call site and may include sweep, parameter, density, trial, control, and rewiring-stage indices",
         "density_coupling": "Figures 5 and 8 generate one maximum attempt sequence per independent trial and evaluate nested prefixes for all rho values",
-        "shared_baselines": "Identical parameter combinations appearing in multiple sweep panels of Figures 5, 7, and 8 reuse the same trial-level realizations",
+        "shared_baselines": "Figure 5 panels (a,b), Figure 7 panels (a,b), and the relevant Figure 8 panels reuse identical trial-level realizations for shared parameter combinations; Figure 7(c) uses an independent paired-control stream",
         "figure6_comparison": "gamma=2 and gamma=3; gamma=3 is the upper endpoint of the primary exponent sweep",
-        "figure7_control": "same vertices, number of unique hyperedges, and final unique-hyperedge size sequence; vertex degrees are not matched",
-        "figure8_export": "apl_lcc, lcc_fraction, connected, and mean_hyperedge_degree are exported for every trial and density",
+        "figure6_uncertainty": "10000 realization-block bootstrap resamples for variance-to-mean and total-variation diagnostics",
+        "figure7_controls": {
+            "size_matched": "same vertices, number of unique hyperedges, and complete final unique-hyperedge size sequence; vertex degrees are not matched",
+            "degree_and_size_preserving": "at rho=3, incidence switches preserve every vertex degree, every hyperedge size, edge count, and simplicity; checkpoints after 20q, 50q, 100q, and 200q accepted switches, with q the number of unique hyperedges; no uniform-sampling claim",
+        },
+        "figure8_export": "apl_lcc, lcc_fraction, connected, and mean_hypergraph_vertex_degree are exported for every trial and density",
+        "parameter_grids": {
+            "figure1": {"n": 100, "rho": 1.6, "gamma": [2.0, 4.0], "s_max": 5},
+            "figure2": {"h_over_R": 0.35},
+            "figure3": {"n": 500, "rho": 3.0, "gamma": list(GAMMAS), "s_max": 5},
+            "figure4": {"n": 500, "rho": list(np.arange(0.5, 5.01, 0.5)), "gamma": list(GAMMAS), "s_max": 5},
+            "figure5": {"n": 500, "rho": list(np.arange(0.5, 5.01, 0.5)), "gamma": list(GAMMAS), "s_max": list(SMAX_VALUES)},
+            "figure6": {"n": 500, "rho": 3.0, "gamma": [2.0, 3.0], "s_max": 5},
+            "figure7": {"n": 300, "rho": list(np.arange(1.0, 5.01, 0.5)), "gamma": list(GAMMAS), "s_max": list(SMAX_VALUES), "degree_size_control_rho": 3.0},
+            "figure8": {"n": [200, 300, 500], "rho": list(np.arange(1.5, 5.01, 0.5)), "gamma": list(GAMMAS), "s_max": 5},
+        },
         "workers": arguments.workers,
+        "command": ["python", "reproduce_all.py", "--workers", arguments.workers, "--figures", *requested_figures],
         "python": sys.version,
         "platform": platform.platform(),
         "packages": {
@@ -822,6 +1201,7 @@ def write_manifest(arguments, requested_figures: list[int]) -> Path:
             "palette": "Okabe-Ito colour-vision-deficiency-safe palette",
         },
         "figures": requested_figures,
+        "output_sha256": output_hashes,
     }
     filename = (
         "experiment_manifest.json"

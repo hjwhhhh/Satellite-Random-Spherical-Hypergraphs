@@ -3,7 +3,9 @@ message: "If you use this software, please cite the repository and the accompany
 title: "Satellite Random Spherical Hypergraphs"
 type: software
 authors:
-  - name: "hjwhhhh"
+  - family-names: "Hu"
+    given-names: "Jingwen"
+    orcid: "https://orcid.org/0009-0005-4670-0023"
 repository-code: "https://github.com/hjwhhhh/Satellite-Random-Spherical-Hypergraphs"
 url: "https://github.com/hjwhhhh/Satellite-Random-Spherical-Hypergraphs"
 version: 1.0.0

@@ -295,7 +295,7 @@ def generate_realization(
     )
 
 
-def hyperedge_degrees(n: int, edges: Iterable[frozenset[int]]) -> np.ndarray:
+def hypergraph_vertex_degrees(n: int, edges: Iterable[frozenset[int]]) -> np.ndarray:
     degree = np.zeros(n, dtype=int)
     for edge in edges:
         degree[np.fromiter(edge, dtype=int)] += 1
@@ -318,10 +318,10 @@ def realization_metrics(
     need_paths: bool = False,
 ) -> dict[str, object]:
     n = len(realization.points)
-    degree = hyperedge_degrees(n, realization.unique_edges)
+    degree = hypergraph_vertex_degrees(n, realization.unique_edges)
     result: dict[str, object] = {
         "degree_sequence": degree,
-        "mean_hyperedge_degree": float(degree.mean()),
+        "mean_hypergraph_vertex_degree": float(degree.mean()),
         "retained_attempts": len(realization.retained_attempts),
         "unique_edges": len(realization.unique_edges),
         "unique_fraction_attempts": realization.unique_fraction_of_attempts,
@@ -382,6 +382,106 @@ def generate_size_matched_null(
         else:
             raise RuntimeError("Unable to construct a unique size-matched null hyperedge")
     return output
+
+
+def generate_degree_size_preserving_control(
+    n: int,
+    edges: Sequence[frozenset[int]],
+    seed: int | np.random.SeedSequence | None,
+    successful_swaps: int,
+    *,
+    max_attempt_multiplier: int = 100,
+) -> tuple[list[frozenset[int]], dict[str, float | int]]:
+    """Randomize a simple hypergraph while preserving degrees and edge sizes.
+
+    One accepted switch selects distinct edges ``a`` and ``b``, a vertex
+    ``u`` in ``a\\b``, and a vertex ``v`` in ``b\\a``.  Replacing ``u`` by
+    ``v`` in the first edge and ``v`` by ``u`` in the second preserves every
+    hyperedge size and every vertex incidence degree.  Switches that would
+    create a duplicate hyperedge are rejected.  The resulting Markov-chain
+    control is not claimed to be a uniform sample from all hypergraphs with
+    the same margins.
+    """
+    if not isinstance(n, (int, np.integer)) or n <= 0:
+        raise ValueError("n must be a positive integer")
+    if not isinstance(successful_swaps, (int, np.integer)) or successful_swaps < 0:
+        raise ValueError("successful_swaps must be a non-negative integer")
+    if not isinstance(max_attempt_multiplier, (int, np.integer)) or max_attempt_multiplier < 1:
+        raise ValueError("max_attempt_multiplier must be a positive integer")
+
+    rewired = [frozenset(int(vertex) for vertex in edge) for edge in edges]
+    if len(rewired) != len(set(rewired)):
+        raise ValueError("input hyperedges must be unique")
+    if any(len(edge) < 2 for edge in rewired):
+        raise ValueError("every hyperedge must contain at least two vertices")
+    if any(vertex < 0 or vertex >= n for edge in rewired for vertex in edge):
+        raise ValueError("hyperedge vertex index lies outside 0,...,n-1")
+    if successful_swaps and len(rewired) < 2:
+        raise RuntimeError("at least two hyperedges are required for rewiring")
+
+    original_sizes = sorted(len(edge) for edge in rewired)
+    original_degrees = hypergraph_vertex_degrees(n, rewired)
+    used = set(rewired)
+    rng = np.random.default_rng(seed)
+    attempted = 0
+    accepted = 0
+    maximum_attempts = max(1000, int(max_attempt_multiplier) * max(1, int(successful_swaps)))
+
+    while accepted < successful_swaps and attempted < maximum_attempts:
+        attempted += 1
+        first_index = int(rng.integers(len(rewired)))
+        second_index = int(rng.integers(len(rewired) - 1))
+        if second_index >= first_index:
+            second_index += 1
+        first, second = rewired[first_index], rewired[second_index]
+        first_only = sorted(first - second)
+        second_only = sorted(second - first)
+        if not first_only or not second_only:
+            continue
+        first_vertex = int(first_only[int(rng.integers(len(first_only)))])
+        second_vertex = int(second_only[int(rng.integers(len(second_only)))])
+        candidate_first = frozenset((first - {first_vertex}) | {second_vertex})
+        candidate_second = frozenset((second - {second_vertex}) | {first_vertex})
+        if candidate_first == candidate_second or {
+            candidate_first,
+            candidate_second,
+        } == {first, second}:
+            continue
+
+        used.remove(first)
+        used.remove(second)
+        valid = candidate_first not in used and candidate_second not in used
+        if valid:
+            rewired[first_index] = candidate_first
+            rewired[second_index] = candidate_second
+            used.add(candidate_first)
+            used.add(candidate_second)
+            accepted += 1
+        else:
+            used.add(first)
+            used.add(second)
+
+    if accepted != successful_swaps:
+        raise RuntimeError(
+            "Unable to complete the requested degree-and-size-preserving "
+            f"rewiring: {accepted}/{successful_swaps} accepted after "
+            f"{attempted} attempts"
+        )
+
+    if sorted(len(edge) for edge in rewired) != original_sizes:
+        raise AssertionError("rewiring changed the hyperedge-size multiset")
+    if not np.array_equal(hypergraph_vertex_degrees(n, rewired), original_degrees):
+        raise AssertionError("rewiring changed the hypergraph vertex-degree sequence")
+    if len(rewired) != len(set(rewired)):
+        raise AssertionError("rewiring created duplicate hyperedges")
+
+    diagnostics: dict[str, float | int] = {
+        "requested_swaps": int(successful_swaps),
+        "successful_swaps": int(accepted),
+        "attempted_swaps": int(attempted),
+        "acceptance_rate": float(accepted / attempted) if attempted else np.nan,
+    }
+    return rewired, diagnostics
 
 
 def wilson_interval(successes: int, trials: int, z: float = 1.959963984540054) -> tuple[float, float]:
