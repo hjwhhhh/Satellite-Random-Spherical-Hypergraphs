@@ -1,31 +1,39 @@
 # Satellite Random Spherical Hypergraphs
 
-This directory is the standalone reproducibility package for the experiments
+This repository is the standalone reproducibility package for the experiments
 reported in *Satellite Random Spherical Hypergraphs*. It contains the exact
-fixed-cap Sat-RSH model and the figure-generation pipeline used for Figures
-1--8 of the manuscript.
+fixed-cap Sat-RSH model, the Figure 1--8 generation pipeline, trial-level data,
+publication figures, software metadata, and automated validation checks.
 
-Historical kNN-GRSH scripts elsewhere in the working project are intentionally
-excluded because they do not generate the results in the current manuscript.
+Repository: <https://github.com/hjwhhhh/Satellite-Random-Spherical-Hypergraphs>
 
-## Contents
+Historical kNN-GRSH scripts are intentionally excluded because they do not
+generate the results reported in the manuscript.
 
-- `sat_rsh_model.py` implements the fixed-cap Sat-RSH generator, retained-size
-  probabilities, graph projections and metrics, Wilson intervals, and the
-  size-matched non-geometric control.
-- `reproduce_all.py` regenerates every publication figure, all trial-level CSV
-  files, and a machine-readable experiment manifest.
-- `requirements.txt` pins the package versions used for the reported results.
+## Repository contents
 
-Generated files are written to `figures/` and `data/` inside this directory.
-The script creates both directories when needed.
+- `sat_rsh_model.py`: model generator, exact retained-attempt mixture, graph
+  projections and metrics, Wilson intervals, and the size-matched control.
+- `reproduce_all.py`: regenerates Figures 1--8, trial-level CSV files, and run
+  metadata.
+- `validate_outputs.py`: verifies the complete publication output package.
+- `tests/`: fast model-level regression and property tests.
+- `requirements.txt`: exact package versions used for the reported results.
+- `data/`: committed trial-level CSV files and the complete experiment
+  manifest.
+- `figures/`: committed vector PDFs and 600-dpi RGB PNGs.
+- `CITATION.cff`: GitHub-compatible software citation metadata.
+- `LICENSE`: MIT software license.
+- `LICENSE-DATA.md`: CC BY 4.0 terms for committed data and figures.
 
 ## Installation
 
-The reported experiments were run with Python 3.13.9. From this directory,
-create an isolated environment and install the pinned dependencies:
+The reported experiments were run with Python 3.13.9. Clone the repository,
+create an isolated environment, and install the pinned dependencies:
 
 ```bash
+git clone https://github.com/hjwhhhh/Satellite-Random-Spherical-Hypergraphs.git
+cd Satellite-Random-Spherical-Hypergraphs
 python -m venv .venv
 ```
 
@@ -45,34 +53,61 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-## Quick verification
+## Fast checks
 
-Figures 1 and 2 are deterministic and fast enough for a basic installation
-check:
+Run the model-level tests:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Figures 1 and 2 provide a quick installation check:
 
 ```bash
 python reproduce_all.py --figures 1 2 --workers 1
 ```
 
-This command should create vector PDFs, 600-dpi PNGs, two CSV files, and
-`data/experiment_manifest.json`.
+This partial command writes `data/last_run_manifest.json`; it deliberately does
+not overwrite the committed full-paper `data/experiment_manifest.json`.
 
 ## Full reproduction
 
-To regenerate all experiments with the trial counts reported in the paper:
+Regenerate all experiments at the trial counts reported in the manuscript:
 
 ```bash
 python reproduce_all.py --workers 4
 ```
 
-To reproduce selected figures only:
+The full command writes Figures 1--8, all trial-level CSV files, and
+`data/experiment_manifest.json`. Figure 8 computes exact all-pairs distances in
+the largest connected component and is normally the slowest stage. The worker
+count controls concurrent independent realizations and does not alter seeds or
+numerical results.
+
+After the run, validate the publication package:
 
 ```bash
-python reproduce_all.py --figures 3 4 5 --workers 4
+python validate_outputs.py
 ```
 
-Figure 8 computes exact all-pairs distances in the largest connected component
-and is normally the slowest stage.
+The validator checks the complete file set, CSV row counts, full manifest,
+600-dpi metadata, and true RGB image mode.
+
+## Expected data files
+
+| File | Data rows | Content |
+|---|---:|---|
+| `figure1_hyperedges.csv` | 178 | Unique hyperedges in both example realizations |
+| `figure2_geometry.csv` | 1 | Footprint angles and normalized altitude |
+| `figure3_size_distribution_trials.csv` | 800 | Trial-level retained-size counts and proportions |
+| `figure4_degree_trials.csv` | 1200 | Degree and unique-edge-yield statistics |
+| `figure5_connectivity_trials.csv` | 6400 | Coupled finite-size connectivity indicators |
+| `figure6_node_degrees.csv` | 50000 | Vertex degrees for the Poisson comparison |
+| `figure7_clustering_trials.csv` | 2700 | Sat-RSH and control clustering values |
+| `figure8_path_trials.csv` | 1400 | LCC paths, coverage, connectivity, and mean degree |
+
+All data are synthetic and are regenerated from the fixed base seed. No human,
+animal, confidential, or third-party data are included.
 
 ## Figure mapping
 
@@ -90,34 +125,43 @@ and is normally the slowest stage.
 
 - Base seed: `20260718`.
 - Independent streams are derived with `numpy.random.SeedSequence`.
-- Figures 5 and 8 use nested prefixes of a common maximum-attempt sequence
-  within each trial. This preserves the correct marginal model and makes each
-  sample-level connectivity curve nondecreasing in density.
-- Repeated parameter combinations in Figures 5, 7, and 8 reuse a common set of
-  trial realizations across panels.
-- Error bars are sample standard deviations unless a figure states otherwise.
+- Figures 5 and 8 evaluate nested prefixes of one maximum attempt sequence
+  within each trial, making sample-level connectivity nondecreasing in density.
+- Repeated parameter combinations in Figures 5, 7, and 8 reuse the same
+  trial-level realization across the relevant panels.
+- Error bars are sample standard deviations unless a caption states otherwise.
 - Connectivity bands are 95% Wilson score intervals.
-- Clustering assigns coefficient zero to isolated and degree-one vertices.
-- Path length is computed only in the largest connected component; its vertex
-  fraction is exported with the path statistic.
-- The Figure 7 control matches the vertex set, final number of unique
-  hyperedges, and final unique-hyperedge size sequence. It does not match the
-  hypergraph vertex-degree sequence.
+- Clustering assigns zero to isolated and degree-one vertices.
+- Path length is computed in the largest connected component and exported with
+  its vertex fraction.
+- The Figure 7 control matches the vertex set, number of unique hyperedges, and
+  complete hyperedge-size sequence, but not the vertex-degree sequence.
 
 Every run records the Python version, operating system, package versions,
-requested figures, worker count, seed rule, and reported trial counts in
-`data/experiment_manifest.json`.
+worker count, requested figures, seed rule, repository URL, and license. A
+partial run records its scope separately and cannot replace the full-paper
+manifest.
 
-## Output format
+## Figure format and fonts
 
-- Figures are exported as vector PDFs with embedded TrueType fonts and as
-  600-dpi RGB PNGs.
-- The Okabe--Ito colour-vision-deficiency-safe palette is supplemented with
-  marker shapes and line styles.
-- Trial-level statistics are stored as UTF-8 CSV files with headers.
+Each figure is exported as a vector PDF with embedded TrueType fonts and as a
+600-dpi, 8-bit RGB PNG. The Okabe--Ito color-vision-deficiency-safe palette is
+supplemented with marker shapes and line styles.
+
+The reported figures use Arial. On systems without Arial, Matplotlib may use a
+fallback sans-serif font; numerical data remain identical, but small layout
+differences can occur. Install Arial before reproduction when pixel-level
+visual matching is required.
+
+## Citation and archival release
+
+Use the repository citation exposed by `CITATION.cff`. For a submitted or
+published article, also cite the manuscript itself. A tagged GitHub release can
+be archived through Zenodo to obtain an immutable software DOI.
 
 ## License
 
-No software license has been selected in this working copy. Add a `LICENSE`
-file before public release; without an explicit license, public availability
-does not grant general reuse rights.
+The software is released under the MIT License; see `LICENSE`. The committed
+trial-level data and figures are released under the Creative Commons
+Attribution 4.0 International license; see `LICENSE-DATA.md`. Reuse should cite
+the repository and the accompanying manuscript.

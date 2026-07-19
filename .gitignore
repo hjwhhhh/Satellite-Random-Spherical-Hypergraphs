@@ -3,7 +3,6 @@ __pycache__/
 *.pyd
 .venv/
 venv/
-figures/
-data/
+data/last_run_manifest.json
 .DS_Store
 Thumbs.db

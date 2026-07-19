@@ -1,8 +1,8 @@
-"""Regenerate every Sat-RSH experiment, data export, and vector figure.
+"""Regenerate every Sat-RSH experiment, data export, and publication figure.
 
-Run from the ``论文模板`` directory with
+Run from this repository directory with
 
-    python sat_rsh_experiments/reproduce_all.py
+    python reproduce_all.py
 
 The default run uses the trial counts reported in the manuscript.  All random
 seeds are deterministic functions of ``BASE_SEED`` and the figure parameters.
@@ -17,7 +17,6 @@ import json
 import platform
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from itertools import combinations
 from pathlib import Path
 
 import matplotlib
@@ -30,6 +29,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from matplotlib.legend_handler import HandlerTuple
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from PIL import Image
 from scipy.spatial import ConvexHull
 from scipy.stats import poisson, t
 
@@ -58,6 +58,8 @@ DATA_DIR = HERE / "data"
 BASE_SEED = 20260718
 GAMMAS = (1.5, 2.0, 2.5, 3.0)
 SMAX_VALUES = (2, 3, 4, 5)
+ALL_FIGURES = tuple(range(1, 9))
+REPOSITORY_URL = "https://github.com/hjwhhhh/Satellite-Random-Spherical-Hypergraphs"
 
 plt.rcParams.update(publication_style())
 
@@ -69,14 +71,28 @@ def stable_seed(*coordinates: int) -> int:
 def save_figure(fig: plt.Figure, number: int) -> None:
     """Save editable vector art and a 600-dpi RGB review/submission bitmap."""
     FIGURE_DIR.mkdir(parents=True, exist_ok=True)
-    for suffix in ("pdf", "png"):
-        fig.savefig(
-            FIGURE_DIR / f"figure{number}.{suffix}",
-            format=suffix,
-            dpi=600,
-            bbox_inches=None,
-            facecolor="white",
-        )
+    pdf_path = FIGURE_DIR / f"figure{number}.pdf"
+    png_path = FIGURE_DIR / f"figure{number}.png"
+    fig.savefig(
+        pdf_path,
+        format="pdf",
+        dpi=600,
+        bbox_inches=None,
+        facecolor="white",
+    )
+    fig.savefig(
+        png_path,
+        format="png",
+        dpi=600,
+        bbox_inches=None,
+        facecolor="white",
+        transparent=False,
+    )
+    # Matplotlib writes PNGs with an alpha channel even when the canvas is
+    # opaque. Entropy recommends 8-bit RGB figures, so remove that redundant
+    # channel while preserving 600-dpi metadata.
+    with Image.open(png_path) as image:
+        image.convert("RGB").save(png_path, dpi=(600, 600))
     plt.close(fig)
 
 
@@ -778,10 +794,12 @@ def make_figure8(workers: int) -> None:
     print("Figure 8 complete", flush=True)
 
 
-def write_manifest(arguments) -> None:
+def write_manifest(arguments, requested_figures: list[int]) -> Path:
     manifest = {
         "model": "fixed-cap Sat-RSH with discard, truncation, and duplicate removal",
         "base_seed": BASE_SEED,
+        "repository": REPOSITORY_URL,
+        "license": "MIT",
         "seed_rule": "numpy.random.SeedSequence([base_seed, figure, sweep, parameter_index, trial]); unused coordinates are omitted",
         "density_coupling": "Figures 5 and 8 generate one maximum attempt sequence per independent trial and evaluate nested prefixes for all rho values",
         "shared_baselines": "Identical parameter combinations appearing in multiple sweep panels of Figures 5, 7, and 8 reuse the same trial-level realizations",
@@ -793,7 +811,7 @@ def write_manifest(arguments) -> None:
         "platform": platform.platform(),
         "packages": {
             package: importlib.metadata.version(package)
-            for package in ("numpy", "scipy", "matplotlib", "networkx")
+            for package in ("numpy", "scipy", "matplotlib", "networkx", "Pillow")
         },
         "reported_trials": {"figure3": 50, "figure4": 30, "figure5": 80, "figure6": 50, "figure7": 30, "figure8": 25},
         "figure_export": {
@@ -803,25 +821,40 @@ def write_manifest(arguments) -> None:
             "font_family": "Arial",
             "palette": "Okabe-Ito colour-vision-deficiency-safe palette",
         },
-        "figures": [int(value) for value in arguments.figures],
+        "figures": requested_figures,
     }
-    with (DATA_DIR / "experiment_manifest.json").open("w", encoding="utf-8") as handle:
+    filename = (
+        "experiment_manifest.json"
+        if requested_figures == list(ALL_FIGURES)
+        else "last_run_manifest.json"
+    )
+    output_path = DATA_DIR / filename
+    with output_path.open("w", encoding="utf-8") as handle:
         json.dump(manifest, handle, indent=2, ensure_ascii=False)
+    return output_path
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--workers", type=int, default=4)
-    parser.add_argument("--figures", nargs="+", default=[str(value) for value in range(1, 9)], choices=[str(value) for value in range(1, 9)])
+    parser.add_argument(
+        "--figures",
+        nargs="+",
+        default=[str(value) for value in ALL_FIGURES],
+        choices=[str(value) for value in ALL_FIGURES],
+    )
     arguments = parser.parse_args()
-    requested = {int(value) for value in arguments.figures}
+    if arguments.workers < 1:
+        parser.error("--workers must be a positive integer")
+    requested = sorted({int(value) for value in arguments.figures})
     FIGURE_DIR.mkdir(parents=True, exist_ok=True)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     functions = {1: make_figure1, 2: make_figure2, 3: lambda: make_figure3(arguments.workers), 4: lambda: make_figure4(arguments.workers), 5: lambda: make_figure5(arguments.workers), 6: lambda: make_figure6(arguments.workers), 7: lambda: make_figure7(arguments.workers), 8: lambda: make_figure8(arguments.workers)}
     for number in range(1, 9):
         if number in requested:
             functions[number]()
-    write_manifest(arguments)
+    manifest_path = write_manifest(arguments, requested)
+    print(f"Run manifest: {manifest_path.relative_to(HERE)}", flush=True)
     print("All requested fixed-cap Sat-RSH outputs are complete.", flush=True)
 
 

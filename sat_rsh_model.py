@@ -1,6 +1,6 @@
 """Reproducible fixed-cap Satellite Random Spherical Hypergraph model.
 
-This module implements the model stated in ``main_pdf_body.tex``:
+This module implements the model stated in the accompanying manuscript:
 
 1. sample ground points and satellite nadir directions uniformly on S^2;
 2. draw a target footprint size S from a truncated Zipf law;
@@ -17,7 +17,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import combinations
-from math import comb
 from typing import Iterable, Sequence
 
 import networkx as nx
