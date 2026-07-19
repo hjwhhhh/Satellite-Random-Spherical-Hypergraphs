@@ -1,0 +1,47 @@
+{
+  "model": "fixed-cap Sat-RSH with discard, truncation, and duplicate removal",
+  "base_seed": 20260718,
+  "repository": "https://github.com/hjwhhhh/Satellite-Random-Spherical-Hypergraphs",
+  "license": "MIT",
+  "seed_rule": "numpy.random.SeedSequence([base_seed, figure, sweep, parameter_index, trial]); unused coordinates are omitted",
+  "density_coupling": "Figures 5 and 8 generate one maximum attempt sequence per independent trial and evaluate nested prefixes for all rho values",
+  "shared_baselines": "Identical parameter combinations appearing in multiple sweep panels of Figures 5, 7, and 8 reuse the same trial-level realizations",
+  "figure6_comparison": "gamma=2 and gamma=3; gamma=3 is the upper endpoint of the primary exponent sweep",
+  "figure7_control": "same vertices, number of unique hyperedges, and final unique-hyperedge size sequence; vertex degrees are not matched",
+  "figure8_export": "apl_lcc, lcc_fraction, connected, and mean_hyperedge_degree are exported for every trial and density",
+  "workers": 4,
+  "python": "3.13.9 (tags/v3.13.9:8183fa5, Oct 14 2025, 14:09:13) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "packages": {
+    "numpy": "2.3.5",
+    "scipy": "1.18.0",
+    "matplotlib": "3.10.8",
+    "networkx": "3.6.1",
+    "Pillow": "12.1.0"
+  },
+  "reported_trials": {
+    "figure3": 50,
+    "figure4": 30,
+    "figure5": 80,
+    "figure6": 50,
+    "figure7": 30,
+    "figure8": 25
+  },
+  "figure_export": {
+    "vector": "PDF with embedded TrueType fonts",
+    "raster": "RGB PNG at 600 dpi",
+    "maximum_width_mm": 183,
+    "font_family": "Arial",
+    "palette": "Okabe-Ito colour-vision-deficiency-safe palette"
+  },
+  "figures": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ]
+}
