@@ -58,7 +58,7 @@ from sat_rsh_model import (
 HERE = Path(__file__).resolve().parent
 FIGURE_DIR = HERE / "figures"
 DATA_DIR = HERE / "data"
-BASE_SEED = 20260718
+BASE_SEED = 42
 GAMMAS = (1.5, 2.0, 2.5, 3.0)
 SMAX_VALUES = (2, 3, 4, 5)
 ALL_FIGURES = tuple(range(1, 9))

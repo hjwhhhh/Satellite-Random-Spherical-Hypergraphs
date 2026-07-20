@@ -19,8 +19,9 @@ from sat_rsh_model import poisson_total_variation
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 FIGURE_DIR = ROOT / "figures"
+EXPECTED_BASE_SEED = 42
 EXPECTED_ROWS = {
-    "figure1_hyperedges.csv": 178,
+    "figure1_hyperedges.csv": 179,
     "figure2_geometry.csv": 1,
     "figure3_size_distribution_trials.csv": 800,
     "figure4_degree_trials.csv": 1200,
@@ -184,7 +185,7 @@ def main() -> int:
                 "experiment manifest must list all figures 1--8; found "
                 f"{manifest.get('figures')!r}"
             )
-        if manifest.get("base_seed") != 20260718:
+        if manifest.get("base_seed") != EXPECTED_BASE_SEED:
             failures.append("unexpected base seed in experiment manifest")
         if manifest.get("license") != "MIT":
             failures.append("experiment manifest does not record the MIT license")

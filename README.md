@@ -7,8 +7,30 @@ publication figures, software metadata, and automated validation checks.
 
 Repository: <https://github.com/hjwhhhh/Satellite-Random-Spherical-Hypergraphs>
 
+Release: `v1.0.1` (20 July 2026)
+
 Historical kNN-GRSH scripts are intentionally excluded because they do not
 generate the results reported in the manuscript.
+
+## Open-science and reproducibility status
+
+This package is organized to support the data- and code-availability
+expectations of *Entropy* and MDPI:
+
+- the full analysis code is publicly accessible without registration;
+- every software dependency used for the reported run is version-pinned;
+- the minimal and complete synthetic trial-level data supporting all numerical
+  claims are committed in non-proprietary CSV format;
+- `data/experiment_manifest.json` records the parameter grids, trial counts,
+  random-stream rule, runtime environment, and SHA-256 hashes of every reported
+  output;
+- `validate_outputs.py` checks file completeness, schemas, row counts, hashes,
+  scientific invariants, shared baselines, and figure metadata;
+- software is available under the MIT License, while generated data and figures
+  are available under CC BY 4.0.
+
+No external or restricted dataset is required. A fresh clone is sufficient to
+run the tests, regenerate the complete experiment package, and validate it.
 
 ## Repository contents
 
@@ -98,7 +120,7 @@ The validator checks the complete file set, CSV row counts, full manifest,
 
 | File | Data rows | Content |
 |---|---:|---|
-| `figure1_hyperedges.csv` | 178 | Unique hyperedges in both example realizations |
+| `figure1_hyperedges.csv` | 179 | Unique hyperedges in both example realizations |
 | `figure2_geometry.csv` | 1 | Footprint angles and normalized altitude |
 | `figure3_size_distribution_trials.csv` | 800 | Pre-deduplication retained-attempt and final unique-edge size counts and proportions |
 | `figure4_degree_trials.csv` | 1200 | Degree and unique-edge-yield statistics |
@@ -129,7 +151,7 @@ animal, confidential, or third-party data are included.
 
 ## Reproducibility conventions
 
-- Base seed: `20260718`.
+- Base seed: `42` (fixed for exact reproducibility; not a model parameter).
 - Independent streams are derived with `numpy.random.SeedSequence`.
 - Figures 5 and 8 evaluate nested prefixes of one maximum attempt sequence
   within each trial, making sample-level connectivity nondecreasing in density.
@@ -172,7 +194,10 @@ visual matching is required.
 
 Use the repository citation exposed by `CITATION.cff`. For a submitted or
 published article, also cite the manuscript itself. A tagged GitHub release can
-be archived through Zenodo to obtain an immutable software DOI.
+be archived through Zenodo to obtain an immutable software DOI. The GitHub
+repository is the public code location used in the manuscript's Data
+Availability Statement; an archival DOI can be added after a preservation
+release is created.
 
 ## License
 

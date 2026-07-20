@@ -2,12 +2,22 @@ cff-version: 1.2.0
 message: "If you use this software, please cite the repository and the accompanying manuscript."
 title: "Satellite Random Spherical Hypergraphs"
 type: software
+abstract: "Reproducibility package for the fixed-cap Satellite Random Spherical Hypergraph model, including source code, trial-level synthetic data, publication figures, and validation checks."
 authors:
   - family-names: "Hu"
     given-names: "Jingwen"
     orcid: "https://orcid.org/0009-0005-4670-0023"
+  - family-names: "Gu"
+    given-names: "Bingqiao"
+  - family-names: "Li"
+    given-names: "Dong"
 repository-code: "https://github.com/hjwhhhh/Satellite-Random-Spherical-Hypergraphs"
 url: "https://github.com/hjwhhhh/Satellite-Random-Spherical-Hypergraphs"
-version: 1.0.0
-date-released: 2026-07-19
+keywords:
+  - "random hypergraph"
+  - "spherical geometry"
+  - "higher-order network"
+  - "reproducible research"
+version: 1.0.1
+date-released: 2026-07-20
 license: MIT
