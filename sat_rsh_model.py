@@ -57,20 +57,21 @@ SIZE_MARKERS = {2: "o", 3: "s", 4: "^", 5: "D"}
 
 
 def publication_style() -> dict:
-    """Nature-style defaults for figures exported at final publication size.
+    """Journal-style defaults for figures exported at final publication size.
 
-    The main multi-panel figures are 183 mm wide.  The manuscript scales them
-    slightly when embedding, leaving ordinary lettering within the 5--7 pt
-    final-size range and panel letters at approximately 8 pt.
+    The main multi-panel figures are 183 mm wide.  After the small amount of
+    scaling applied by the manuscript, ordinary lettering remains close to
+    8--9 pt: one typographic step below the 10 pt body text while retaining
+    clear tick labels and legends at normal reading size.
     """
     return {
         "font.family": "Arial",
-        "font.size": 7.2,
-        "axes.labelsize": 7.5,
-        "axes.titlesize": 7.5,
-        "xtick.labelsize": 6.5,
-        "ytick.labelsize": 6.5,
-        "legend.fontsize": 6.3,
+        "font.size": 8.8,
+        "axes.labelsize": 9.0,
+        "axes.titlesize": 9.0,
+        "xtick.labelsize": 8.0,
+        "ytick.labelsize": 8.0,
+        "legend.fontsize": 7.8,
         "axes.linewidth": 0.7,
         "lines.linewidth": 1.1,
         "lines.markersize": 4.0,

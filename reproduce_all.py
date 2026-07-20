@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 from matplotlib.lines import Line2D
-from matplotlib.patches import Patch
+from matplotlib.patches import Circle, Patch, Polygon, Rectangle
 from matplotlib.legend_handler import HandlerTuple
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from PIL import Image
@@ -201,7 +201,7 @@ def draw_hyperedge(ax, points: np.ndarray, edge: frozenset[int], color: str) -> 
 
 def make_figure1() -> None:
     n, m, s_max = 100, 160, 5
-    fig = plt.figure(figsize=(7.2, 2.75))
+    fig = plt.figure(figsize=(7.2, 3.55))
     rows: list[dict] = []
     for panel, gamma in enumerate((2.0, 4.0), start=1):
         realization = generate_realization(n, m, gamma, s_max, stable_seed(1, panel))
@@ -226,11 +226,18 @@ def make_figure1() -> None:
             zorder=5,
         )
         counts = {size: int(np.sum(realization.unique_sizes == size)) for size in range(2, 6)}
-        subtitle = ", ".join(f"$N_{size}={counts[size]}$" for size in range(2, 6))
-        panel_title(ax, chr(96 + panel), rf"$\gamma={gamma:.1f}$" + "\n" + subtitle, pad=-4)
+        subtitle = r",\;".join(f"N_{size}={counts[size]}" for size in range(2, 6))
+        fig.text(
+            0.018 + 0.5 * (panel - 1),
+            0.985,
+            rf"$\mathbf{{{chr(96 + panel)}}}\quad \gamma={gamma:.1f};\quad {subtitle}$",
+            ha="left",
+            va="top",
+            fontsize=9.0,
+        )
         ax.view_init(elev=18, azim=35)
         ax.set_proj_type("ortho")
-        ax.set_box_aspect((1, 1, 1), zoom=1.30)
+        ax.set_box_aspect((1, 1, 1), zoom=1.68)
         ax.set_axis_off()
         for attempt, edge in enumerate(realization.unique_edges):
             rows.append(
@@ -246,109 +253,247 @@ def make_figure1() -> None:
         Line2D([0], [0], color=SIZE_COLORS[size], lw=2.5, label=rf"$|e|={size}$")
         for size in range(2, 6)
     ]
-    fig.legend(handles=handles, loc="lower center", ncol=4, frameon=False, bbox_to_anchor=(0.5, 0.015), handlelength=2.2)
-    fig.subplots_adjust(left=0.01, right=0.99, top=0.91, bottom=0.15, wspace=0.02)
+    fig.legend(handles=handles, loc="lower center", ncol=4, frameon=False, bbox_to_anchor=(0.5, -0.004), handlelength=2.0)
+    fig.subplots_adjust(left=-0.035, right=1.035, top=0.925, bottom=0.095, wspace=-0.12)
     save_figure(fig, 1)
     write_csv("figure1_hyperedges.csv", ["panel_gamma", "unique_edge_index", "size", "vertices"], rows)
     print("Figure 1 complete", flush=True)
 
 
 def make_figure2() -> None:
-    h = 0.35
-    satellite_radius = 1.0 + h
-    theta = float(np.arccos(1.0 / satellite_radius))
+    radius, h = 1.0, 0.35
+    satellite_radius = radius + h
+    theta = float(np.arccos(radius / satellite_radius))
     alpha = np.pi / 2.0 - theta
     satellite = np.array([0.0, satellite_radius])
     tangent_right = np.array([np.sin(theta), np.cos(theta)])
     tangent_left = np.array([-np.sin(theta), np.cos(theta)])
 
-    fig, ax = plt.subplots(figsize=(4.65, 3.75))
-    circle = np.linspace(0, 2 * np.pi, 500)
-    ax.fill(np.cos(circle), np.sin(circle), color=OKABE_ITO["sky_blue"], alpha=0.12)
-    ax.plot(np.cos(circle), np.sin(circle), color=OKABE_ITO["black"], lw=1.0)
-    cap_arc = np.linspace(np.pi / 2 - theta, np.pi / 2 + theta, 160)
-    ax.plot(np.cos(cap_arc), np.sin(cap_arc), color=OKABE_ITO["vermillion"], lw=3.2, alpha=0.68)
+    # Restrained, colour-vision-deficiency-friendly semantic palette.  Geometry
+    # is dark navy; the footprint and theta share teal; the two satellite-side
+    # angles use purple and amber so the complementary relation is immediate.
+    navy = "#25364A"
+    blue = "#477FA8"
+    teal = "#0F8F82"
+    teal_light = "#DDF2EE"
+    amber = "#D99100"
+    purple = "#7967A8"
+    earth_fill = "#EAF2F7"
+    muted = "#7A8797"
+    pale = "#D7E0E8"
+    ink = "#17212B"
+
+    def draw_satellite(axis, x: float, y: float, scale: float = 1.0) -> None:
+        """Draw a compact vector satellite centered on the geometric point S."""
+        body_w, body_h = 0.105 * scale, 0.075 * scale
+        panel_w, panel_h = 0.115 * scale, 0.055 * scale
+        gap = 0.020 * scale
+        for sign in (-1, 1):
+            panel_x = x + sign * (body_w / 2 + gap + panel_w / 2) - panel_w / 2
+            panel = Rectangle(
+                (panel_x, y - panel_h / 2),
+                panel_w,
+                panel_h,
+                facecolor=blue,
+                edgecolor=navy,
+                linewidth=0.65,
+                zorder=9,
+            )
+            axis.add_patch(panel)
+            for fraction in (1 / 3, 2 / 3):
+                axis.plot(
+                    [panel_x + fraction * panel_w, panel_x + fraction * panel_w],
+                    [y - panel_h / 2, y + panel_h / 2],
+                    color="white",
+                    lw=0.32,
+                    alpha=0.85,
+                    zorder=10,
+                )
+        axis.add_patch(
+            Rectangle(
+                (x - body_w / 2, y - body_h / 2),
+                body_w,
+                body_h,
+                facecolor=navy,
+                edgecolor="white",
+                linewidth=0.55,
+                zorder=11,
+            )
+        )
+        axis.plot([x, x], [y + body_h / 2, y + 0.105 * scale], color=navy, lw=0.75, zorder=10)
+        axis.scatter(x, y + 0.112 * scale, s=8.0 * scale, color=amber, edgecolor=navy, linewidth=0.45, zorder=11)
+
+    def draw_angle(axis, center, radius_value, start, stop, color, label, label_radius):
+        values = np.linspace(start, stop, 120)
+        axis.plot(
+            center[0] + radius_value * np.cos(values),
+            center[1] + radius_value * np.sin(values),
+            color=color,
+            lw=1.55,
+            solid_capstyle="round",
+            zorder=7,
+        )
+        middle = 0.5 * (start + stop)
+        axis.text(
+            center[0] + label_radius * np.cos(middle),
+            center[1] + label_radius * np.sin(middle),
+            label,
+            color=color,
+            ha="center",
+            va="center",
+            weight="bold",
+            zorder=8,
+        )
+
+    def draw_right_angle(axis, vertex, point_a, point_b, size=0.070):
+        u = (point_a - vertex) / np.linalg.norm(point_a - vertex)
+        v = (point_b - vertex) / np.linalg.norm(point_b - vertex)
+        corners = np.vstack((vertex + size * u, vertex + size * (u + v), vertex + size * v))
+        axis.plot(corners[:, 0], corners[:, 1], color=muted, lw=0.85, zorder=8)
+
+    fig = plt.figure(figsize=(7.2, 3.25))
+    grid = fig.add_gridspec(
+        1,
+        2,
+        width_ratios=(1.24, 1.0),
+        left=0.018,
+        right=0.988,
+        bottom=0.035,
+        top=0.92,
+        wspace=0.075,
+    )
+    overview = fig.add_subplot(grid[0, 0])
+    construction = fig.add_subplot(grid[0, 1])
+
+    # (a) Physical cross-section: the cap is shown as an area, not only an arc,
+    # and both tangent rays meet the exact geometric horizon points T_- and T_+.
+    overview.add_patch(Circle((0, 0), radius, facecolor=earth_fill, edgecolor=navy, linewidth=1.15, zorder=0))
+    cap_angles = np.linspace(np.pi / 2 - theta, np.pi / 2 + theta, 260)
+    cap_points = np.column_stack((np.cos(cap_angles), np.sin(cap_angles)))
+    overview.add_patch(
+        Polygon(cap_points, closed=True, facecolor=teal_light, edgecolor="none", alpha=0.96, zorder=1)
+    )
+    overview.plot(cap_points[:, 0], cap_points[:, 1], color=teal, lw=3.1, solid_capstyle="round", zorder=5)
+
     for tangent in (tangent_left, tangent_right):
-        ax.plot([satellite[0], tangent[0]], [satellite[1], tangent[1]], ls="--", lw=0.9, color=OKABE_ITO["orange"])
-    ax.plot([0, 0], [0, satellite_radius + 0.08], ls=":", lw=0.9, color=OKABE_ITO["gray"])
-    ax.plot([-0.32, 0.58], [satellite_radius, satellite_radius], ls=":", lw=0.9, color=OKABE_ITO["gray"])
-    ax.scatter(*satellite, marker="*", s=115, color=OKABE_ITO["orange"], edgecolor="black", linewidth=0.45, zorder=6)
-    ax.text(-0.08, satellite_radius + 0.10, "satellite", color="black", weight="bold", ha="right", va="center")
-    ax.text(0.42, satellite_radius + 0.035, "local horizon", color="black", ha="center", va="bottom")
-    ax.scatter(0, 0, marker="+", s=44, color="black")
-    ax.text(0.04, -0.075, "$O$")
-    ax.scatter(0, 1, s=18, color="black", zorder=6)
-    ax.text(0.04, 0.91, "nadir point $q$")
+        overview.plot(
+            [satellite[0], tangent[0]],
+            [satellite[1], tangent[1]],
+            color=navy,
+            lw=1.05,
+            zorder=3,
+        )
+    overview.plot([0, 0], [0, satellite_radius], ls=(0, (2, 2.4)), color=muted, lw=0.85, zorder=2)
+    overview.plot([0, tangent_right[0]], [0, tangent_right[1]], color=navy, lw=0.9, zorder=2)
+    draw_right_angle(overview, tangent_right, np.array([0.0, 0.0]), satellite, size=0.060)
 
-    central_arc = np.linspace(np.pi / 2 - theta, np.pi / 2, 80)
-    ax.plot(0.42 * np.cos(central_arc), 0.42 * np.sin(central_arc), color=OKABE_ITO["blue"], lw=1.35)
-    central_mid = np.pi / 2 - theta / 2
-    ax.text(0.48 * np.cos(central_mid), 0.48 * np.sin(central_mid), r"$\theta$", color="black", fontsize=8.0)
-
-    down = np.array([0.0, -1.0])
-    line = tangent_right - satellite
-    line /= np.linalg.norm(line)
-    angle_down = np.arctan2(down[1], down[0])
-    angle_line = np.arctan2(line[1], line[0])
-    arc_angles = np.linspace(angle_down, angle_line, 80)
-    ax.plot(
-        satellite[0] + 0.18 * np.cos(arc_angles),
-        satellite[1] + 0.18 * np.sin(arc_angles),
-        color=OKABE_ITO["bluish_green"],
-        lw=1.35,
+    overview.annotate(
+        "",
+        xy=(-0.105, satellite_radius - 0.015),
+        xytext=(-0.105, 1.015),
+        arrowprops=dict(arrowstyle="<->", color=amber, lw=1.15, shrinkA=0, shrinkB=0),
+        zorder=8,
     )
-    alpha_mid = (angle_down + angle_line) / 2.0
-    ax.text(
-        satellite[0] + 0.23 * np.cos(alpha_mid),
-        satellite[1] + 0.23 * np.sin(alpha_mid),
-        r"$\alpha$",
-        color="black",
-        fontsize=8.0,
-        ha="center",
+    overview.text(-0.145, 1.175, "$h$", color=amber, ha="right", va="center", weight="bold")
+
+    start_angle = np.arctan2(tangent_right[1], tangent_right[0])
+    draw_angle(overview, np.array([0.0, 0.0]), 0.31, start_angle, np.pi / 2, teal, r"$\theta$", 0.40)
+
+    station_angles = np.array([0.35, 0.67, 0.91, 1.13, 1.36, 1.58, 1.81, 2.03, 2.27, 2.53, 2.82])
+    station_in_cap = np.abs(station_angles - np.pi / 2) <= theta
+    station_radius = 1.008
+    overview.scatter(
+        station_radius * np.cos(station_angles[~station_in_cap]),
+        station_radius * np.sin(station_angles[~station_in_cap]),
+        s=15,
+        color=muted,
+        edgecolor="white",
+        linewidth=0.45,
+        zorder=7,
+    )
+    overview.scatter(
+        station_radius * np.cos(station_angles[station_in_cap]),
+        station_radius * np.sin(station_angles[station_in_cap]),
+        s=21,
+        color=teal,
+        edgecolor="white",
+        linewidth=0.55,
+        zorder=7,
+    )
+
+    draw_satellite(overview, *satellite, scale=1.0)
+    overview.text(0.0, 1.495, "Satellite $S$", color=ink, weight="bold", ha="center", va="bottom")
+    overview.scatter(0, 0, s=13, color=navy, zorder=8)
+    overview.scatter(0, 1, s=15, color=navy, zorder=8)
+    overview.scatter(*tangent_right, s=18, color=navy, edgecolor="white", linewidth=0.45, zorder=8)
+    overview.text(0.045, -0.035, "$O$", color=ink, ha="left", va="top")
+    overview.text(0.045, 0.925, "$Q$ (nadir)", color=ink, ha="left", va="top")
+    overview.text(tangent_right[0] + 0.045, tangent_right[1] + 0.015, "$T_+$", color=ink, ha="left", va="bottom")
+    overview.annotate(
+        "Horizon footprint",
+        xy=(-0.72, 0.71),
+        xytext=(-1.08, 1.18),
+        color=teal,
+        ha="left",
         va="center",
+        arrowprops=dict(arrowstyle="-", color=teal, lw=0.9),
+    )
+    panel_title(overview, "a", "Spherical horizon footprint", pad=2)
+    overview.set_aspect("equal")
+    overview.set_xlim(-1.16, 1.16)
+    overview.set_ylim(-0.36, 1.58)
+    overview.axis("off")
+
+    # (b) Exact right-triangle construction.  It uses the same normalized
+    # geometry as panel (a), so every angle and the right-angle marker are exact.
+    origin = np.array([0.0, 0.0])
+    sat = np.array([0.0, satellite_radius])
+    tangent = tangent_right.copy()
+    construction.plot([origin[0], sat[0]], [origin[1], sat[1]], color=navy, lw=1.2, zorder=2)
+    construction.plot([origin[0], tangent[0]], [origin[1], tangent[1]], color=navy, lw=1.2, zorder=2)
+    construction.plot([sat[0], tangent[0]], [sat[1], tangent[1]], color=navy, lw=1.35, zorder=3)
+    construction.plot([sat[0], 1.22], [sat[1], sat[1]], ls=(0, (2, 2.4)), color=muted, lw=0.85, zorder=1)
+    draw_right_angle(construction, tangent, origin, sat, size=0.075)
+
+    line_of_sight_angle = np.arctan2(tangent[1] - sat[1], tangent[0] - sat[0])
+    draw_angle(construction, origin, 0.23, start_angle, np.pi / 2, teal, r"$\theta$", 0.31)
+    draw_angle(construction, sat, 0.18, -np.pi / 2, line_of_sight_angle, purple, r"$\alpha$", 0.245)
+    draw_angle(
+        construction,
+        sat,
+        0.31,
+        line_of_sight_angle,
+        0.0,
+        amber,
+        r"$\delta_{\mathrm{dep}}$",
+        0.39,
     )
 
-    depression_angles = np.linspace(angle_line, 0.0, 80)
-    ax.plot(
-        satellite[0] + 0.27 * np.cos(depression_angles),
-        satellite[1] + 0.27 * np.sin(depression_angles),
-        color=OKABE_ITO["blue"],
-        lw=1.35,
+    draw_satellite(construction, *sat, scale=0.92)
+    construction.scatter(*origin, s=15, color=navy, zorder=8)
+    construction.scatter(*tangent, s=18, color=navy, edgecolor="white", linewidth=0.45, zorder=8)
+    construction.text(-0.055, -0.055, "$O$", color=ink, ha="right", va="top")
+    construction.text(-0.08, 1.49, "$S$", color=ink, weight="bold", ha="right", va="bottom")
+    construction.text(tangent[0] + 0.05, tangent[1] - 0.005, "$T$", color=ink, ha="left", va="center")
+    construction.text(-0.075, 0.69, "$R+h$", color=ink, rotation=90, ha="right", va="center")
+    construction.text(0.31, 0.29, "$R=1$", color=ink, rotation=np.degrees(start_angle), ha="center", va="top")
+    construction.text(1.18, 1.38, "Local horizon", color=muted, ha="right", va="bottom")
+    construction.text(
+        1.28,
+        1.12,
+        r"$\alpha+\theta=\pi/2$" + "\n" + r"$\delta_{\mathrm{dep}}=\theta$",
+        color=ink,
+        ha="right",
+        va="top",
+        linespacing=1.35,
+        bbox=dict(boxstyle="round,pad=0.28", facecolor="white", edgecolor=pale, linewidth=0.8),
     )
-    depression_mid = angle_line / 2.0
-    ax.text(
-        satellite[0] + 0.33 * np.cos(depression_mid),
-        satellite[1] + 0.33 * np.sin(depression_mid),
-        r"$\theta$",
-        color="black",
-        fontsize=8.0,
-        ha="center",
-        va="center",
-    )
-    ax.annotate("", xy=(0, 1), xytext=(0, satellite_radius), arrowprops=dict(arrowstyle="<->", color=OKABE_ITO["reddish_purple"], lw=1.0))
-    ax.text(-0.075, 1.16, "$h$", color="black", ha="right")
+    panel_title(construction, "b", "Exact angular construction", pad=2)
+    construction.set_aspect("equal")
+    construction.set_xlim(-0.25, 1.34)
+    construction.set_ylim(-0.16, 1.60)
+    construction.axis("off")
 
-    rng = np.random.default_rng(stable_seed(2, 1))
-    ground_angles = rng.uniform(0, 2 * np.pi, 18)
-    in_cap = np.abs(np.angle(np.exp(1j * (ground_angles - np.pi / 2)))) <= theta
-    ax.scatter(np.cos(ground_angles[~in_cap]), np.sin(ground_angles[~in_cap]), s=14, color=OKABE_ITO["gray"], zorder=5, label="outside footprint")
-    ax.scatter(np.cos(ground_angles[in_cap]), np.sin(ground_angles[in_cap]), s=20, color=OKABE_ITO["vermillion"], edgecolor="black", linewidth=0.3, zorder=5, label="captured ground point")
-    ax.annotate(
-        "footprint arc",
-        xy=tangent_left,
-        xytext=(-1.04, 1.13),
-        ha="center",
-        va="center",
-        color="black",
-        arrowprops=dict(arrowstyle="-", color=OKABE_ITO["vermillion"], lw=0.8),
-    )
-
-    ax.legend(loc="lower right", frameon=False, handletextpad=0.4, labelspacing=0.3)
-    ax.set_aspect("equal")
-    ax.set_xlim(-1.24, 1.24)
-    ax.set_ylim(-1.08, 1.53)
-    ax.axis("off")
-    fig.subplots_adjust(left=0.01, right=0.99, top=0.99, bottom=0.01)
     save_figure(fig, 2)
     write_csv(
         "figure2_geometry.csv",
@@ -486,7 +631,7 @@ def make_figure3(workers: int) -> None:
         Line2D([0], [0], marker="x", color="black", ls="none", label="target Zipf"),
         Line2D([0], [0], marker="_", color="black", ls="none", markersize=7, label="retained-attempt mixture"),
     ]
-    axes[0].legend(handles=semantic_handles, frameon=False, loc="upper right", fontsize=5.8, handlelength=1.5)
+    axes[0].legend(handles=semantic_handles, frameon=False, loc="upper right", fontsize=7.2, handlelength=1.5)
     size_handles = [
         tuple(
             Line2D(
@@ -511,7 +656,7 @@ def make_figure3(workers: int) -> None:
         frameon=False,
         loc="lower right",
         ncol=1,
-        fontsize=5.5,
+        fontsize=7.1,
         handletextpad=0.4,
         labelspacing=0.25,
     )
@@ -523,7 +668,7 @@ def make_figure3(workers: int) -> None:
         ],
         frameon=False,
         loc="upper left",
-        fontsize=5.3,
+        fontsize=7.0,
         handletextpad=0.35,
         labelspacing=0.25,
     )
@@ -590,7 +735,7 @@ def make_figure4(workers: int) -> None:
         ],
         frameon=False,
         loc="upper left",
-        fontsize=5.8,
+        fontsize=7.2,
         handlelength=1.8,
     )
     gamma_handles = [Line2D([0], [0], color=GAMMA_COLORS[gamma], marker=GAMMA_MARKERS[gamma], label=rf"$\gamma={gamma}$") for gamma in GAMMAS]
@@ -730,7 +875,7 @@ def make_figure6(workers: int) -> None:
         ax.bar(support, observed, width=0.78, color=OKABE_ITO["sky_blue"], alpha=0.76, edgecolor="white", linewidth=0.3, label="Observed mean")
         ax.errorbar(support, observed, yerr=ci95, fmt="none", ecolor=OKABE_ITO["blue"], elinewidth=0.55, capsize=1.0, capthick=0.55, label="95% CI")
         ax.plot(support, poisson.pmf(support, mean), color=OKABE_ITO["black"], marker="o", ms=2.2, lw=0.95, label=rf"Poisson($\widehat\lambda={mean:.2f}$)")
-        ax.text(0.97, 0.72, rf"$\mathrm{{Var}}/\mathrm{{Mean}}={dispersion:.2f}$" + "\n" + rf"$d_{{TV}}={total_variation:.3f}$", transform=ax.transAxes, ha="right", va="top", fontsize=6.2)
+        ax.text(0.97, 0.72, rf"$\mathrm{{Var}}/\mathrm{{Mean}}={dispersion:.2f}$" + "\n" + rf"$d_{{TV}}={total_variation:.3f}$", transform=ax.transAxes, ha="right", va="top", fontsize=7.2)
         ax.set_xlabel("Hypergraph vertex degree $d$")
         ax.set_xlim(-0.5, maximum + 0.5)
         ax.set_xticks(np.arange(0, maximum + 1, 3))
@@ -738,7 +883,7 @@ def make_figure6(workers: int) -> None:
     axes[0].set_ylabel("Probability")
     panel_title(axes[0], "a", rf"$\gamma={considered[0]}$")
     panel_title(axes[1], "b", rf"$\gamma={considered[1]}$")
-    axes[0].legend(frameon=False, loc="upper left", fontsize=5.8, handlelength=1.6)
+    axes[0].legend(frameon=False, loc="upper left", fontsize=7.2, handlelength=1.6)
     fig.subplots_adjust(left=0.075, right=0.99, bottom=0.19, top=0.90, wspace=0.18)
     save_figure(fig, 6)
     write_csv(
@@ -969,7 +1114,7 @@ def make_figure7(workers: int) -> None:
             ax.errorbar(rhos, means, yerr=sds, color=color, marker=marker, markeredgecolor="white", markeredgewidth=0.3, capsize=1.3, capthick=0.65, elinewidth=0.65, label=label)
         ax.set_xlabel(r"$\rho=m/n$")
         ax.set_ylabel("Mean local clustering")
-        ax.legend(frameon=False, fontsize=5.8, handlelength=1.4, labelspacing=0.25)
+        ax.legend(frameon=False, fontsize=7.2, handlelength=1.4, labelspacing=0.25)
         clean_axes(ax)
     axes[0].set_ylim(0.54, 0.66)
     axes[1].set_ylim(0.0, 0.66)
@@ -1011,8 +1156,8 @@ def make_figure7(workers: int) -> None:
     axes[2].set_xlabel(r"$\rho=m/n$")
     axes[2].set_ylabel("Mean local clustering")
     axes[2].set_ylim(0.16, 0.66)
-    panel_title(axes[2], "c", r"Non-geometric controls ($\gamma=2$)")
-    axes[2].legend(frameon=False, fontsize=5.1, handlelength=1.6)
+    panel_title(axes[2], "c", "Non-geometric controls")
+    axes[2].legend(frameon=False, fontsize=7.0, handlelength=1.6)
     clean_axes(axes[2])
     fig.subplots_adjust(left=0.075, right=0.992, bottom=0.19, top=0.90, wspace=0.38)
     save_figure(fig, 7)
@@ -1134,7 +1279,7 @@ def make_figure8(workers: int) -> None:
         # Display the complete mean +/- SD range at low density.
         axes[1, column].set_ylim(0.45, 1.05)
         axes[1, column].set_yticks((0.5, 0.6, 0.7, 0.8, 0.9, 1.0))
-        axes[0, column].legend(frameon=False, fontsize=5.8, handlelength=1.4)
+        axes[0, column].legend(frameon=False, fontsize=7.2, handlelength=1.4)
         clean_axes(axes[0, column])
         clean_axes(axes[1, column])
     panel_title(axes[0, 0], "a", r"Paths by tail exponent ($n=300$)")
@@ -1198,7 +1343,10 @@ def write_manifest(arguments, requested_figures: list[int]) -> Path:
             "raster": "RGB PNG at 600 dpi",
             "maximum_width_mm": 183,
             "font_family": "Arial",
-            "palette": "Okabe-Ito colour-vision-deficiency-safe palette",
+            "palette": (
+                "colour-vision-deficiency-aware palettes: Okabe-Ito for statistical "
+                "panels; restrained navy/teal/amber/purple semantics for Figure 2"
+            ),
         },
         "figures": requested_figures,
         "output_sha256": output_hashes,
