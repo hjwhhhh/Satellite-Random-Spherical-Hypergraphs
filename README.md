@@ -9,9 +9,6 @@ Repository: <https://github.com/hjwhhhh/Satellite-Random-Spherical-Hypergraphs>
 
 Package version: `1.0.1` (20 July 2026)
 
-Historical kNN-GRSH scripts are intentionally excluded because they do not
-generate the results reported in the manuscript.
-
 ## Open-science and reproducibility status
 
 This package is organized to support the data- and code-availability
